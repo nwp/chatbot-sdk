@@ -25,6 +25,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Architecture Overview
 
 ### Tech Stack
+
 - **Framework**: Next.js 15 with App Router and React Server Components
 - **AI**: Vercel AI SDK with xAI Grok models (via AI Gateway)
 - **Database**: PostgreSQL with Drizzle ORM
@@ -34,6 +35,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Code Quality**: Biome for linting and formatting
 
 ### Directory Structure
+
 - `app/` - Next.js App Router pages and API routes
   - `(auth)/` - Authentication-related pages and logic
   - `(chat)/` - Chat interface and functionality
@@ -48,7 +50,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `tests/` - Playwright test suites
 
 ### Database Schema
+
 The database uses Drizzle ORM with PostgreSQL:
+
 - `User` - User accounts with email/password
 - `Chat` - Chat sessions with title and visibility
 - `Message_v2` - Chat messages with parts and attachments (latest schema)
@@ -60,12 +64,14 @@ The database uses Drizzle ORM with PostgreSQL:
 **Migration Note**: The schema includes deprecated `Message` and `Vote` tables. New development should use `Message_v2` and `Vote_v2`.
 
 ### AI Integration
+
 - Uses Vercel AI Gateway for model access
 - Default models: Grok Vision and Grok Reasoning (xAI)
 - Custom AI tools for document creation, weather, and suggestions
 - Structured generation for artifacts and documents
 
 ### Key Features
+
 - Real-time chat with AI models
 - Document generation and editing (artifacts system)
 - File uploads via Vercel Blob
@@ -74,7 +80,9 @@ The database uses Drizzle ORM with PostgreSQL:
 - Collaborative document suggestions
 
 ### Environment Setup
+
 Required environment variables (see `.env.example`):
+
 - `AUTH_SECRET` - Authentication secret key
 - `AI_GATEWAY_API_KEY` - AI Gateway API key (for non-Vercel deployments)
 - `POSTGRES_URL` - PostgreSQL database connection
@@ -82,12 +90,14 @@ Required environment variables (see `.env.example`):
 - `REDIS_URL` - Redis connection for caching
 
 ### Testing
+
 - Playwright E2E tests in `tests/` directory
 - Two test projects: `e2e` and `routes`
 - Tests run against local development server
 - Test command: `pnpm test`
 
 ### Code Standards
+
 - Uses Biome for linting and formatting (see `biome.jsonc`)
 - TypeScript with strict configuration
 - 2-space indentation, single quotes, trailing commas
