@@ -154,7 +154,9 @@ export function SidebarHistory() {
       <SidebarGroup>
         <SidebarGroupContent>
           <div className="flex flex-row gap-2 justify-center items-center px-2 w-full text-sm text-zinc-500">
-            {!isLoaded ? 'Loading...' : 'Login to save and revisit previous chats!'}
+            {!isLoaded
+              ? 'Loading...'
+              : 'Login to save and revisit previous chats!'}
           </div>
         </SidebarGroupContent>
       </SidebarGroup>
@@ -330,9 +332,7 @@ export function SidebarHistory() {
           />
 
           {hasReachedEnd ? (
-            <div className="flex flex-row gap-2 justify-center items-center px-2 mt-8 w-full text-sm text-zinc-500">
-              You have reached the end of your chat history.
-            </div>
+            <div className="flex flex-row gap-2 justify-center items-center px-2 mt-8 w-full text-sm text-zinc-500" />
           ) : (
             <div className="flex flex-row gap-2 items-center p-2 mt-8 text-zinc-500 dark:text-zinc-400">
               <div className="animate-spin">

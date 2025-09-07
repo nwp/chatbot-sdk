@@ -2,9 +2,13 @@ import { Toaster } from 'sonner';
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { resolveSubdomainToOrganization } from '@/lib/tenant';
 
 import './globals.css';
 import { ClerkThemeProvider } from '@/components/clerk-theme-provider';
+import { TenantProvider } from '@/components/tenant-provider';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
@@ -53,6 +57,21 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headersList = await headers();
+  const tenantSlug = headersList.get('x-tenant-slug');
+  
+  let tenant = null;
+  
+  if (tenantSlug) {
+    tenant = await resolveSubdomainToOrganization(tenantSlug);
+    
+    if (!tenant) {
+      // If organization not found, redirect to root domain
+      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN || 'chatbot-sdk.com';
+      const protocol = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+      redirect(`${protocol}://${rootDomain}`);
+    }
+  }
   return (
     <html
       lang="en"
@@ -78,7 +97,11 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Toaster position="top-center" />
-          <ClerkThemeProvider>{children}</ClerkThemeProvider>
+          <ClerkThemeProvider>
+            <TenantProvider tenant={tenant}>
+              {children}
+            </TenantProvider>
+          </ClerkThemeProvider>
         </ThemeProvider>
       </body>
     </html>

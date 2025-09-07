@@ -1,5 +1,6 @@
 import { clerkMiddleware, createRouteMatcher } from '@clerk/nextjs/server';
 import { NextResponse } from 'next/server';
+import { extractSubdomain } from './lib/tenant';
 
 const isProtectedRoute = createRouteMatcher([
   '/',
@@ -18,11 +19,23 @@ export default clerkMiddleware(async (auth, request) => {
     return new Response('pong', { status: 200 });
   }
 
+  // Extract subdomain and pass to app via headers
+  const subdomain = extractSubdomain(request);
+  const requestHeaders = new Headers(request.headers);
+  
+  if (subdomain) {
+    requestHeaders.set('x-tenant-slug', subdomain);
+  }
+
   if (isProtectedRoute(request)) {
     await auth.protect();
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
 });
 
 export const config = {

@@ -254,9 +254,19 @@ export async function DELETE(request: Request) {
     return new ChatSDKError('unauthorized:chat').toResponse();
   }
 
+  const dbUser = await getUserByClerkId(userId);
+
+  if (!dbUser) {
+    // This should not happen if the layout redirect is working correctly
+    return new ChatSDKError(
+      'unauthorized:chat',
+      'User not found in database.',
+    ).toResponse();
+  }
+
   const chat = await getChatById({ id });
 
-  if (chat.userId !== userId) {
+  if (chat.userId !== dbUser.id) {
     return new ChatSDKError('forbidden:chat').toResponse();
   }
 

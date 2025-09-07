@@ -11,7 +11,6 @@ import {
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { convertToUIMessages } from '@/lib/utils';
-import { ChatSDKError } from '@/lib/errors';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -25,16 +24,13 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
   const { userId: clerkUserId } = await auth();
 
   if (!clerkUserId) {
-    return new ChatSDKError('unauthorized:chat').toResponse();
+    redirect('/sign-in');
   }
 
   const dbUser = await getUserByClerkId(clerkUserId);
 
   if (!dbUser) {
-    return new ChatSDKError(
-      'unauthorized:chat',
-      'User not found in database.',
-    ).toResponse();
+    redirect('/sign-in');
   }
 
   if (!dbUser.id) {
@@ -84,8 +80,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
         initialMessages={uiMessages}
         initialChatModel={chatModelFromCookie.value}
         initialVisibilityType={chat.visibility}
-        isReadonly={userId !== chat.userId}
-        userId={userId}
+        isReadonly={dbUser.id !== chat.userId}
+        userId={dbUser.id}
         autoResume={true}
       />
       <DataStreamHandler />
