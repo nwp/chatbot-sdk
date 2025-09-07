@@ -1,25 +1,14 @@
-import Form from 'next/form';
-
-import { signOut } from '@/app/(auth)/auth';
+import { SignOutButton } from '@clerk/nextjs';
 
 export const SignOutForm = () => {
   return (
-    <Form
-      className="w-full"
-      action={async () => {
-        'use server';
-
-        await signOut({
-          redirectTo: '/',
-        });
-      }}
-    >
+    <SignOutButton redirectUrl="/">
       <button
-        type="submit"
+        type="button"
         className="w-full text-left px-1 py-0.5 text-red-500"
       >
         Sign out
       </button>
-    </Form>
+    </SignOutButton>
   );
 };

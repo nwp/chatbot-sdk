@@ -1,6 +1,6 @@
-import { auth } from '@/app/(auth)/auth';
+import { auth } from '@clerk/nextjs/server';
 import type { NextRequest } from 'next/server';
-import { getChatsByUserId } from '@/lib/db/queries';
+import { getChatsByUserId, getUserByClerkId } from '@/lib/db/queries';
 import { ChatSDKError } from '@/lib/errors';
 
 export async function GET(request: NextRequest) {
@@ -17,14 +17,20 @@ export async function GET(request: NextRequest) {
     ).toResponse();
   }
 
-  const session = await auth();
+  const { userId: clerkUserId } = await auth();
 
-  if (!session?.user) {
+  if (!clerkUserId) {
     return new ChatSDKError('unauthorized:chat').toResponse();
   }
 
+  const dbUser = await getUserByClerkId(clerkUserId);
+
+  if (!dbUser) {
+    return new ChatSDKError('unauthorized:chat', 'User not found in database.').toResponse();
+  }
+
   const chats = await getChatsByUserId({
-    id: session.user.id,
+    id: dbUser.id,
     limit,
     startingAfter,
     endingBefore,

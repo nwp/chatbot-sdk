@@ -11,18 +11,18 @@ import { useSidebar } from './ui/sidebar';
 import { memo } from 'react';
 import { Tooltip, TooltipContent, TooltipTrigger } from './ui/tooltip';
 import { type VisibilityType, VisibilitySelector } from './visibility-selector';
-import type { Session } from 'next-auth';
+import { ClientOnly } from './client-only';
 
 function PureChatHeader({
   chatId,
   selectedVisibilityType,
   isReadonly,
-  session,
+  userId,
 }: {
   chatId: string;
   selectedVisibilityType: VisibilityType;
   isReadonly: boolean;
-  session: Session;
+  userId: string;
 }) {
   const router = useRouter();
   const { open } = useSidebar();
@@ -53,11 +53,13 @@ function PureChatHeader({
       )}
 
       {!isReadonly && (
-        <VisibilitySelector
-          chatId={chatId}
-          selectedVisibilityType={selectedVisibilityType}
-          className="order-1 md:order-2"
-        />
+        <ClientOnly fallback={<div className="w-[120px] h-[34px] bg-gray-100 dark:bg-gray-800 animate-pulse rounded-md order-1 md:order-2 hidden md:block" />}>
+          <VisibilitySelector
+            chatId={chatId}
+            selectedVisibilityType={selectedVisibilityType}
+            className="order-1 md:order-2"
+          />
+        </ClientOnly>
       )}
 
       <Button

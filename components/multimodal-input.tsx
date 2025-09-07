@@ -39,6 +39,7 @@ import type { Attachment, ChatMessage } from '@/lib/types';
 import { chatModels } from '@/lib/ai/models';
 import { saveChatModelAsCookie } from '@/app/(chat)/actions';
 import { startTransition } from 'react';
+import { ClientOnly } from '@/components/client-only';
 
 function PureMultimodalInput({
   chatId,
@@ -324,7 +325,9 @@ function PureMultimodalInput({
         <PromptInputToolbar className="px-4 py-2 !border-t-0 !border-top-0 shadow-none dark:!border-transparent dark:border-0">
           <PromptInputTools className="gap-2">
             <AttachmentsButton fileInputRef={fileInputRef} status={status} />
-            <ModelSelectorCompact selectedModelId={selectedModelId} />
+            <ClientOnly fallback={<div className="w-16 h-8 bg-gray-100 dark:bg-gray-800 animate-pulse rounded text-xs" />}>
+              <ModelSelectorCompact selectedModelId={selectedModelId} />
+            </ClientOnly>
           </PromptInputTools>
           {status === 'submitted' ? (
             <StopButton stop={stop} setMessages={setMessages} />

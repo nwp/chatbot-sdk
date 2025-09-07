@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import type { Session } from 'next-auth';
 import { streamObject, tool, type UIMessageStreamWriter } from 'ai';
 import { getDocumentById, saveSuggestions } from '@/lib/db/queries';
 import type { Suggestion } from '@/lib/db/schema';
@@ -8,12 +7,12 @@ import { myProvider } from '../providers';
 import type { ChatMessage } from '@/lib/types';
 
 interface RequestSuggestionsProps {
-  session: Session;
+  userId: string;
   dataStream: UIMessageStreamWriter<ChatMessage>;
 }
 
 export const requestSuggestions = ({
-  session,
+  userId,
   dataStream,
 }: RequestSuggestionsProps) =>
   tool({
@@ -69,18 +68,14 @@ export const requestSuggestions = ({
         suggestions.push(suggestion);
       }
 
-      if (session.user?.id) {
-        const userId = session.user.id;
-
-        await saveSuggestions({
-          suggestions: suggestions.map((suggestion) => ({
-            ...suggestion,
-            userId,
-            createdAt: new Date(),
-            documentCreatedAt: document.createdAt,
-          })),
-        });
-      }
+      await saveSuggestions({
+        suggestions: suggestions.map((suggestion) => ({
+          ...suggestion,
+          userId,
+          createdAt: new Date(),
+          documentCreatedAt: document.createdAt,
+        })),
+      });
 
       return {
         id: documentId,

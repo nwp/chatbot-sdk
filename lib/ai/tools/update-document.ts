@@ -1,16 +1,15 @@
 import { tool, type UIMessageStreamWriter } from 'ai';
-import type { Session } from 'next-auth';
 import { z } from 'zod';
 import { getDocumentById } from '@/lib/db/queries';
 import { documentHandlersByArtifactKind } from '@/lib/artifacts/server';
 import type { ChatMessage } from '@/lib/types';
 
 interface UpdateDocumentProps {
-  session: Session;
+  userId: string;
   dataStream: UIMessageStreamWriter<ChatMessage>;
 }
 
-export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
+export const updateDocument = ({ userId, dataStream }: UpdateDocumentProps) =>
   tool({
     description: 'Update a document with the given description.',
     inputSchema: z.object({
@@ -47,7 +46,7 @@ export const updateDocument = ({ session, dataStream }: UpdateDocumentProps) =>
         document,
         description,
         dataStream,
-        session,
+        userId,
       });
 
       dataStream.write({ type: 'data-finish', data: null, transient: true });
