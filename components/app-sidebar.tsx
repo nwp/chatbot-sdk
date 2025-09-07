@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { PlusIcon } from '@/components/icons';
 import { SidebarHistory } from '@/components/sidebar-history';
 import { Button } from '@/components/ui/button';
-import { UserButton } from '@clerk/nextjs';
+import { SidebarUserNav } from '@/components/sidebar-user-nav';
 import {
   Sidebar,
   SidebarContent,
@@ -61,9 +61,7 @@ export function AppSidebar() {
         <SidebarHistory />
       </SidebarContent>
       <SidebarFooter>
-        <div className="flex items-center gap-3 p-3 rounded-lg bg-sidebar-accent/50 mx-2 mb-2">
-          <UserButton showName={true} />
-        </div>
+        <SidebarUserNav />
       </SidebarFooter>
     </Sidebar>
   );

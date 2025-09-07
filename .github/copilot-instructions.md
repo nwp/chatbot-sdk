@@ -56,7 +56,7 @@ pnpm lint:fix          # Biome auto-fix
 ### AI Chat Flow
 
 1. User input → `app/(chat)/api/chat/route.ts`
-2. Authentication check → `auth()` from NextAuth.js v5
+2. Authentication check → `auth()` from `@clerk/nextjs`
 3. Model selection → `myProvider.languageModel(modelId)`
 4. Tools available: `createDocument`, `updateDocument`, `requestSuggestions`, `getWeather`
 5. Response streaming → `createUIMessageStream` with smooth streaming
@@ -70,8 +70,8 @@ pnpm lint:fix          # Biome auto-fix
 
 ### Authentication & Security
 
-- **Auth**: NextAuth.js v5 with session-based auth (`app/(auth)/auth.ts`)
-- **Guest Mode**: Redirect to `/api/auth/guest` for unauthenticated users
+- **Auth**: Clerk with session-based auth
+
 - **Entitlements**: User type-based limits in `lib/ai/entitlements.ts`
 
 ## File Organization Patterns
@@ -99,7 +99,8 @@ pnpm lint:fix          # Biome auto-fix
 
 ### Required Environment Variables
 
-- `AUTH_SECRET` - NextAuth.js session encryption
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk publishable key
+- `CLERK_SECRET_KEY` - Clerk secret key
 - `AI_GATEWAY_API_KEY` - For non-Vercel deployments
 - `POSTGRES_URL` - Database connection
 - `BLOB_READ_WRITE_TOKEN` - Vercel Blob for file uploads

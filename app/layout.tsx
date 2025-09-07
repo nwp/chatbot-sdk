@@ -4,7 +4,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import { ThemeProvider } from '@/components/theme-provider';
 
 import './globals.css';
-import { ClerkProvider } from '@clerk/nextjs';
+import { ClerkThemeProvider } from '@/components/clerk-theme-provider';
 
 export const metadata: Metadata = {
   metadataBase: new URL('https://chat.vercel.ai'),
@@ -78,7 +78,7 @@ export default async function RootLayout({
           disableTransitionOnChange
         >
           <Toaster position="top-center" />
-          <ClerkProvider>{children}</ClerkProvider>
+          <ClerkThemeProvider>{children}</ClerkThemeProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -6,7 +6,7 @@ import {
   stepCountIs,
   streamText,
 } from 'ai';
-import { auth, currentUser } from '@clerk/nextjs/server';
+import { auth } from '@clerk/nextjs/server';
 import { type RequestHints, systemPrompt } from '@/lib/ai/prompts';
 import {
   createStreamId,
@@ -96,7 +96,10 @@ export async function POST(request: Request) {
 
     if (!dbUser) {
       // This should not happen if the layout redirect is working correctly
-      return new ChatSDKError('unauthorized:chat', 'User not found in database.').toResponse();
+      return new ChatSDKError(
+        'unauthorized:chat',
+        'User not found in database.',
+      ).toResponse();
     }
 
     const userId = dbUser.id;

@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronUp } from 'lucide-react';
-import { SignOutButton, useUser } from '@clerk/nextjs';
+import { SignOutButton, useUser, useClerk } from '@clerk/nextjs';
 import { useTheme } from 'next-themes';
 
 import {
@@ -21,6 +21,7 @@ import { LoaderIcon } from './icons';
 export function SidebarUserNav() {
   const { user: clerkUser, isLoaded } = useUser();
   const { setTheme, resolvedTheme } = useTheme();
+  const { openUserProfile } = useClerk();
 
   return (
     <SidebarMenu>
@@ -67,6 +68,13 @@ export function SidebarUserNav() {
             side="top"
             className="w-[--radix-popper-anchor-width]"
           >
+            <DropdownMenuItem
+              data-testid="user-nav-item-profile"
+              className="cursor-pointer"
+              onSelect={() => openUserProfile()}
+            >
+              Manage Account
+            </DropdownMenuItem>
             <DropdownMenuItem
               data-testid="user-nav-item-theme"
               className="cursor-pointer"

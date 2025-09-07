@@ -3,10 +3,15 @@ import { notFound, redirect } from 'next/navigation';
 
 import { auth } from '@clerk/nextjs/server';
 import { Chat } from '@/components/chat';
-import { getChatById, getMessagesByChatId } from '@/lib/db/queries';
+import {
+  getChatById,
+  getMessagesByChatId,
+  getUserByClerkId,
+} from '@/lib/db/queries';
 import { DataStreamHandler } from '@/components/data-stream-handler';
 import { DEFAULT_CHAT_MODEL } from '@/lib/ai/models';
 import { convertToUIMessages } from '@/lib/utils';
+import { ChatSDKError } from '@/lib/errors';
 
 export default async function Page(props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
@@ -17,18 +22,31 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
     notFound();
   }
 
-  const { userId } = await auth();
+  const { userId: clerkUserId } = await auth();
 
-  if (!userId) {
+  if (!clerkUserId) {
+    return new ChatSDKError('unauthorized:chat').toResponse();
+  }
+
+  const dbUser = await getUserByClerkId(clerkUserId);
+
+  if (!dbUser) {
+    return new ChatSDKError(
+      'unauthorized:chat',
+      'User not found in database.',
+    ).toResponse();
+  }
+
+  if (!dbUser.id) {
     redirect('/sign-in');
   }
 
   if (chat.visibility === 'private') {
-    if (!userId) {
+    if (!dbUser.id) {
       return notFound();
     }
 
-    if (userId !== chat.userId) {
+    if (dbUser.id !== chat.userId) {
       return notFound();
     }
   }
@@ -50,8 +68,8 @@ export default async function Page(props: { params: Promise<{ id: string }> }) {
           initialMessages={uiMessages}
           initialChatModel={DEFAULT_CHAT_MODEL}
           initialVisibilityType={chat.visibility}
-          isReadonly={userId !== chat.userId}
-          userId={userId}
+          isReadonly={dbUser.id !== chat.userId}
+          userId={dbUser.id}
           autoResume={true}
         />
         <DataStreamHandler />

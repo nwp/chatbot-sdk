@@ -29,7 +29,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Framework**: Next.js 15 with App Router and React Server Components
 - **AI**: Vercel AI SDK with xAI Grok models (via AI Gateway)
 - **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Auth.js (NextAuth.js v5)
+- **Authentication**: Clerk
 - **Styling**: Tailwind CSS with shadcn/ui components
 - **Testing**: Playwright for E2E tests
 - **Code Quality**: Biome for linting and formatting
@@ -83,7 +83,8 @@ The database uses Drizzle ORM with PostgreSQL:
 
 Required environment variables (see `.env.example`):
 
-- `AUTH_SECRET` - Authentication secret key
+- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` - Clerk publishable key
+- `CLERK_SECRET_KEY` - Clerk secret key
 - `AI_GATEWAY_API_KEY` - AI Gateway API key (for non-Vercel deployments)
 - `POSTGRES_URL` - PostgreSQL database connection
 - `BLOB_READ_WRITE_TOKEN` - Vercel Blob storage token

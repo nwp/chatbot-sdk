@@ -11,7 +11,7 @@ This is a Next.js project called "Chat SDK," designed as a template for building
 * **UI:** shadcn/ui with Tailwind CSS and Radix UI for accessible and flexible components.
 * **Database:** Neon Serverless Postgres with Drizzle ORM for data persistence.
 * **File Storage:** Vercel Blob.
-* **Authentication:** Auth.js.
+* **Authentication:** Clerk.
 * **Testing:** Playwright for end-to-end testing.
 * **Linting & Formatting:** Biome.
 
