@@ -4,14 +4,16 @@
 
 This document provides a comprehensive assessment of pull requests merged into the main branch of the Chat SDK repository on October 31 - November 1, 2025. The Chat SDK is a Next.js-based AI chatbot application using the Vercel AI SDK, with PostgreSQL database persistence and Vercel Blob storage.
 
-**Total Pull Requests Analyzed:** 10
+**Total Pull Requests Analyzed:** 16
 
 **Categories:**
 - Features: 1
-- Bug Fixes: 3
-- Chores: 2
+- Bug Fixes: 7
+- Chores/Refactoring: 2
 - Documentation: 3
 - Performance: 1
+- Configuration: 1
+- Testing: 1
 
 ---
 
@@ -601,46 +603,516 @@ Fixes missing focus outlines on interactive elements to improve keyboard navigat
 
 ---
 
+### 11. PR #1254 - Fix next/image Unconfigured Host Error for Uploaded Images
+
+**Type:** Configuration Fix
+**Priority:** Medium
+**Impact:** Image Display
+**Author:** Leyo
+**Date:** November 1, 2025
+**Commit:** `fd446d1`
+
+#### Description
+Fixes the "Unconfigured Host" error that occurs when displaying images uploaded to Vercel Blob Storage. The Next.js Image component requires explicit configuration for external image hosts. This adds a wildcard pattern for Vercel Blob Storage URLs.
+
+#### Files Changed
+- `next.config.ts` (+5 lines)
+
+#### Code Changes
+
+```typescript
+// next.config.ts
+
+// BEFORE:
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        hostname: "avatar.vercel.sh",
+      },
+    ],
+  },
+};
+
+// AFTER:
+const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [
+      {
+        hostname: "avatar.vercel.sh",
+      },
+      {
+        protocol: "https",
+        //https://nextjs.org/docs/messages/next-image-unconfigured-host
+        hostname: "*.public.blob.vercel-storage.com",  // ✅ Allow Vercel Blob Storage
+      },
+    ],
+  },
+};
+```
+
+#### Integration Considerations
+- **Applicability:** HIGH if you use Vercel Blob Storage for image uploads
+- **Next.js Requirement:** Required to display images from blob storage using `next/image`
+- **Security:** Uses wildcard for all Vercel Blob Storage subdomains
+- **Alternative Hosts:** If you use a different storage provider (AWS S3, Cloudinary, etc.), add your hostname instead
+- **Recommendation:** Apply if you see "Unconfigured Host" errors or use Vercel Blob Storage
+
+---
+
+### 12. PR #1261 - Remove Redundant and() in Query Condition
+
+**Type:** Refactoring (Code Quality)
+**Priority:** Low
+**Impact:** Code Cleanliness
+**Author:** Sheikh Sifat
+**Date:** November 1, 2025
+**Commit:** `31e02e9`
+
+#### Description
+Removes a redundant `and()` wrapper in a Drizzle ORM query. When there's only one condition, the `and()` function is unnecessary and can be simplified.
+
+#### Files Changed
+- `lib/db/queries.ts` (1 line changed)
+
+#### Code Changes
+
+```typescript
+// lib/db/queries.ts
+
+// BEFORE:
+export async function getSuggestionsByDocumentId({
+  documentId,
+}: {
+  documentId: string;
+}) {
+  try {
+    return await db
+      .select()
+      .from(suggestion)
+      .where(and(eq(suggestion.documentId, documentId)));  // ❌ Unnecessary and() wrapper
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+
+// AFTER:
+export async function getSuggestionsByDocumentId({
+  documentId,
+}: {
+  documentId: string;
+}) {
+  try {
+    return await db
+      .select()
+      .from(suggestion)
+      .where(eq(suggestion.documentId, documentId));  // ✅ Clean, no wrapper needed
+  } catch (_error) {
+    throw new ChatSDKError(
+      "bad_request:database",
+```
+
+#### Integration Considerations
+- **Applicability:** LOW - This is a minor code cleanup
+- **Drizzle ORM:** The `and()` function is only needed when combining multiple conditions
+- **Behavior:** No functional change, purely cosmetic
+- **Recommendation:** Apply if you have similar patterns in your codebase for consistency
+
+---
+
+### 13. PR #1274 - Prevent Content Loss When Re-clicking Active Document
+
+**Type:** Bug Fix
+**Priority:** High
+**Impact:** Data Loss Prevention
+**Author:** Deri Kurniawan
+**Date:** November 1, 2025
+**Commit:** `c3bc607`
+
+#### Description
+Fixes a critical bug where clicking on an already-active document would clear unsaved content. The issue occurred because `setArtifact` was setting `content: ""` unconditionally. The fix uses the functional update form to preserve the current content.
+
+#### Files Changed
+- `components/document.tsx` (1 line changed)
+
+#### Code Changes
+
+```tsx
+// components/document.tsx
+
+// BEFORE:
+<button
+  onClick={() => {
+    const rect = button.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const boundingBox = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    setArtifact({  // ❌ Object form - overwrites all properties
+      documentId: result.id,
+      kind: result.kind,
+      content: "",  // ❌ DANGER: Clears content
+      title: result.title,
+      isVisible: true,
+      status: "idle",
+      boundingBox,
+    });
+  }}
+  type="button"
+>
+
+// AFTER:
+<button
+  onClick={() => {
+    const rect = button.current?.getBoundingClientRect();
+    if (!rect) return;
+
+    const boundingBox = {
+      left: rect.left,
+      top: rect.top,
+      width: rect.width,
+      height: rect.height,
+    };
+
+    setArtifact((currentArtifact) => ({  // ✅ Functional form - accesses current state
+      documentId: result.id,
+      kind: result.kind,
+      content: currentArtifact.content,  // ✅ Preserves existing content
+      title: result.title,
+      isVisible: true,
+      status: "idle",
+      boundingBox,
+    }));
+  }}
+  type="button"
+>
+```
+
+#### Integration Considerations
+- **Applicability:** CRITICAL if your fork has artifacts/documents feature
+- **Data Loss:** This fixes a data loss bug - users could lose unsaved work
+- **React Pattern:** Uses functional state update to access current state
+- **Testing:** Test by opening a document, making edits without saving, then clicking the same document again
+- **Recommendation:** MUST apply if you have similar document/artifact functionality
+
+---
+
+### 14. PR #1279 - Generate Title from User Message Using Only Text Parts
+
+**Type:** Bug Fix
+**Priority:** High
+**Impact:** Title Generation Quality
+**Author:** Mateo Ortegon
+**Date:** October 31, 2025
+**Commit:** `d366de3`
+
+#### Description
+Fixes title generation to use only text content from messages, excluding images and other non-text parts. Previously, the entire message object was stringified (including image data), which could result in poor quality titles or errors. Now uses a utility function to extract only text parts.
+
+#### Files Changed
+- `app/(chat)/actions.ts` (+2 imports, modified function)
+- `lib/ai/prompts.ts` (+6 lines)
+- `lib/utils.ts` (modified function signature)
+
+#### Code Changes
+
+```typescript
+// app/(chat)/actions.ts
+
+// NEW IMPORTS:
+import { titlePrompt } from "@/lib/ai/prompts";
+import { getTextFromMessage } from "@/lib/utils";
+
+// BEFORE:
+export async function generateTitleFromUserMessage({
+  message,
+}: {
+  message: UIMessage;
+}) {
+  const { text: title } = await generateText({
+    model: myProvider.languageModel("title-model"),
+    system: `\n
+    - you will generate a short title based on the first message a user begins a conversation with
+    - ensure it is not more than 80 characters long
+    - the title should be a summary of the user's message
+    - do not use quotes or colons`,
+    prompt: JSON.stringify(message),  // ❌ Stringifies entire object including images
+  });
+
+  return title;
+}
+
+// AFTER:
+export async function generateTitleFromUserMessage({
+  message,
+}: {
+  message: UIMessage;
+}) {
+  const { text: title } = await generateText({
+    model: myProvider.languageModel("title-model"),
+    system: titlePrompt,  // ✅ Extracted to prompts file
+    prompt: getTextFromMessage(message),  // ✅ Only extracts text parts
+  });
+
+  return title;
+}
+```
+
+```typescript
+// lib/ai/prompts.ts
+
+// NEW EXPORT:
+export const titlePrompt = `\n
+    - you will generate a short title based on the first message a user begins a conversation with
+    - ensure it is not more than 80 characters long
+    - the title should be a summary of the user's message
+    - do not use quotes or colons`
+```
+
+```typescript
+// lib/utils.ts
+
+// BEFORE:
+export function getTextFromMessage(message: ChatMessage): string {
+  return message.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => part.text)
+    .join('');
+}
+
+// AFTER:
+export function getTextFromMessage(message: ChatMessage | UIMessage): string {  // ✅ Accepts UIMessage too
+  return message.parts
+    .filter((part) => part.type === 'text')
+    .map((part) => (part as { type: 'text'; text: string}).text)  // ✅ Type assertion for safety
+    .join('');
+}
+```
+
+#### Integration Considerations
+- **Applicability:** CRITICAL if your fork has multimodal messages (text + images)
+- **Quality Impact:** Significantly improves title generation quality for messages with attachments
+- **Performance:** Reduces payload sent to AI model by excluding image data
+- **Type Safety:** Updates `getTextFromMessage` to handle both `ChatMessage` and `UIMessage` types
+- **Recommendation:** MUST apply if you support multimodal input. This prevents titles like "[Object object]" or errors from sending binary data to the title generation model.
+
+---
+
+### 15. PR #1280 - Prevent Closed Artifacts from Reopening When Switching Chats
+
+**Type:** Bug Fix
+**Priority:** Medium
+**Impact:** User Experience
+**Author:** Amir HP
+**Date:** November 1, 2025
+**Commit:** `6a02d4f`
+
+#### Description
+Fixes an issue where closed artifacts would unexpectedly reopen when switching between chats. The problem was that the data stream handler was using a ref to track processed indices, which persisted across chat switches. The fix clears the data stream after processing instead of tracking indices.
+
+#### Files Changed
+- `components/data-stream-handler.tsx` (modified logic)
+
+#### Code Changes
+
+```tsx
+// components/data-stream-handler.tsx
+
+// BEFORE:
+export function DataStreamHandler() {
+  const { dataStream } = useDataStream();
+  const { artifact, setArtifact, setMetadata } = useArtifact();
+  const lastProcessedIndex = useRef(-1);  // ❌ Persists across chat switches
+
+  useEffect(() => {
+    if (!dataStream?.length) {
+      return;
+    }
+
+    const newDeltas = dataStream.slice(lastProcessedIndex.current + 1);  // ❌ May include old data
+    lastProcessedIndex.current = dataStream.length - 1;
+
+    for (const delta of newDeltas) {
+      const artifactDefinition = artifactDefinitions.find(
+      // ... processing logic
+
+// AFTER:
+export function DataStreamHandler() {
+  const { dataStream, setDataStream } = useDataStream();  // ✅ Now gets setDataStream
+  const { artifact, setArtifact, setMetadata } = useArtifact();
+  // ✅ Removed lastProcessedIndex ref
+
+  useEffect(() => {
+    if (!dataStream?.length) {
+      return;
+    }
+
+    const newDeltas = dataStream.slice();  // ✅ Process all current items
+    setDataStream([]);  // ✅ Clear immediately after reading
+
+    for (const delta of newDeltas) {
+      const artifactDefinition = artifactDefindefinitions.find(
+      // ... processing logic
+```
+
+#### Integration Considerations
+- **Applicability:** HIGH if your fork has artifacts/documents that can be opened/closed
+- **State Management:** Changes from ref-based tracking to immediate clearing
+- **Context Update:** Requires `setDataStream` to be exposed from `useDataStream` hook
+- **Behavior:** Prevents stale data from being reprocessed when switching contexts
+- **Recommendation:** Apply if you experience artifacts reopening unexpectedly. Verify your `DataStreamProvider` exports `setDataStream`.
+
+---
+
+### 16. PR #1296 - Recover Missing Test Elements
+
+**Type:** Testing (Test Selectors)
+**Priority:** Low
+**Impact:** Test Coverage
+**Author:** Paul Paczuski
+**Date:** October 31, 2025
+**Commit:** `4e0e222`
+
+#### Description
+Adds missing `data-testid` attributes to components that are used in E2E tests. These test selectors were accidentally removed in previous refactorings, causing tests to fail.
+
+#### Files Changed
+- `components/message-actions.tsx` (+1 line)
+- `components/multimodal-input.tsx` (+1 line)
+- `components/preview-attachment.tsx` (+3 lines)
+
+#### Code Changes
+
+```tsx
+// components/message-actions.tsx
+
+// BEFORE:
+<Action
+  className="-left-10 absolute top-0 opacity-0 transition-opacity group-hover/message:opacity-100"
+  onClick={() => setMode("edit")}
+  tooltip="Edit"
+>
+
+// AFTER:
+<Action
+  className="-left-10 absolute top-0 opacity-0 transition-opacity group-hover/message:opacity-100"
+  data-testid="message-edit-button"  // ✅ Restored test selector
+  onClick={() => setMode("edit")}
+  tooltip="Edit"
+>
+```
+
+```tsx
+// components/multimodal-input.tsx
+
+// BEFORE:
+<PromptInputSubmit
+  className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+  disabled={!input.trim() || uploadQueue.length > 0}
+  status={status}
+>
+
+// AFTER:
+<PromptInputSubmit
+  className="size-8 rounded-full bg-primary text-primary-foreground transition-colors duration-200 hover:bg-primary/90 disabled:bg-muted disabled:text-muted-foreground"
+  disabled={!input.trim() || uploadQueue.length > 0}
+  status={status}
+  data-testid="send-button"  // ✅ Restored test selector
+>
+```
+
+```tsx
+// components/preview-attachment.tsx
+
+// BEFORE:
+{isUploading && (
+  <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+    <Loader size={16} />
+  </div>
+)}
+
+// AFTER:
+{isUploading && (
+  <div
+    className="absolute inset-0 flex items-center justify-center bg-black/50"
+    data-testid="input-attachment-loader"  // ✅ Restored test selector
+  >
+    <Loader size={16} />
+  </div>
+)}
+```
+
+#### Integration Considerations
+- **Applicability:** LOW - Only if you have E2E tests using these selectors
+- **Test Coverage:** Ensures tests can properly locate elements
+- **Best Practice:** Using `data-testid` is more stable than CSS selectors
+- **Recommendation:** Apply if you have failing tests looking for these selectors
+
+---
+
 ## Summary by Category
 
 ### Features (1)
 1. **PR #651** - Clipboard image paste support
 
-### Bug Fixes (3)
+### Bug Fixes (7)
 1. **PR #1088** - Race condition in Playwright tests
 2. **PR #1121** - Text stream type update (empty commit)
 3. **PR #1252** - Missing focus outlines (accessibility)
+4. **PR #1274** - Prevent content loss when re-clicking active document ⚠️ **CRITICAL**
+5. **PR #1279** - Generate title from user message using only text parts ⚠️ **CRITICAL**
+6. **PR #1280** - Prevent closed artifacts from reopening when switching chats
+7. **PR #1296** - Recover missing test elements
 
 ### Performance (1)
 1. **PR #1251** - Optimize database query for new chats
 
-### Chores (2)
+### Chores/Refactoring (2)
 1. **PR #937** - Remove unused @vercel/postgres dependency
 2. **PR #983** - Fix typo in function name
+3. **PR #1261** - Remove redundant and() in query condition
+
+### Configuration (1)
+1. **PR #1254** - Fix next/image unconfigured host error for Vercel Blob Storage
 
 ### Documentation (3)
 1. **PR #984** - Update Vercel Blob and Postgres documentation URLs
 2. **PR #1135** - Add database migration step to README
 3. **PR #1210/#1211** - Add AI Gateway setup link to .env.example
 
+### Testing (1)
+1. **PR #1296** - Recover missing test elements
+
 ---
 
 ## Priority Recommendations for Fork Integration
 
+### Critical Priority (Apply Immediately)
+1. **PR #1274** - Content loss prevention (data loss bug) ⚠️
+2. **PR #1279** - Title generation from text only (multimodal messages bug) ⚠️
+
 ### High Priority (Apply First)
 1. **PR #1251** - Database query optimization (performance gain, no breaking changes)
 2. **PR #1252** - Focus outline fixes (accessibility compliance)
-3. **PR #651** - Clipboard paste support (good UX enhancement)
-4. **PR #1088** - Test race condition fix (if you have E2E tests)
+3. **PR #1254** - Next.js image configuration for Vercel Blob (if using Vercel Blob)
+4. **PR #651** - Clipboard paste support (good UX enhancement)
+5. **PR #1280** - Prevent artifacts from reopening (if using artifacts)
 
 ### Medium Priority (Review and Apply if Applicable)
-1. **PR #983** - Typo fix (if you have the same typo)
-2. **PR #1135** - Database migration documentation (if you have migrations)
-3. **PR #937** - Remove unused dependency (if you don't use @vercel/postgres)
+1. **PR #1088** - Test race condition fix (if you have E2E tests)
+2. **PR #983** - Typo fix (if you have the same typo)
+3. **PR #1135** - Database migration documentation (if you have migrations)
+4. **PR #937** - Remove unused dependency (if you don't use @vercel/postgres)
 
-### Low Priority (Documentation Only)
-1. **PR #984** - Update documentation URLs
-2. **PR #1210/#1211** - AI Gateway documentation improvements
+### Low Priority (Code Quality & Documentation)
+1. **PR #1261** - Remove redundant and() in query
+2. **PR #1296** - Restore test selectors (if tests are failing)
+3. **PR #984** - Update documentation URLs
+4. **PR #1210/#1211** - AI Gateway documentation improvements
 
 ---
 
@@ -648,11 +1120,20 @@ Fixes missing focus outlines on interactive elements to improve keyboard navigat
 
 Use this checklist when applying changes to your fork:
 
-- [ ] **PR #651 - Clipboard Paste**
-  - [ ] Verify `multimodal-input` component exists in your fork
-  - [ ] Check `uploadFile` function compatibility
-  - [ ] Test clipboard paste functionality
+### Critical Fixes
+- [ ] **PR #1274 - Content Loss Prevention**
+  - [ ] Locate document/artifact click handlers
+  - [ ] Update `setArtifact` calls to use functional form
+  - [ ] Test: Open document, edit, click same document without saving
+  - [ ] Verify content is preserved
 
+- [ ] **PR #1279 - Title Generation Fix**
+  - [ ] Locate `generateTitleFromUserMessage` function
+  - [ ] Create/update `getTextFromMessage` utility
+  - [ ] Extract title prompt to prompts file
+  - [ ] Test: Send message with image, verify title is text-based
+
+### High Priority
 - [ ] **PR #1251 - Database Optimization**
   - [ ] Locate your chat creation endpoint
   - [ ] Verify `convertToUIMessages` handles empty arrays
@@ -663,6 +1144,23 @@ Use this checklist when applying changes to your fork:
   - [ ] Test keyboard navigation (Tab key)
   - [ ] Verify WCAG 2.1 compliance
 
+- [ ] **PR #1254 - Image Configuration**
+  - [ ] Update `next.config.ts` with Vercel Blob hostname
+  - [ ] Or add your storage provider's hostname
+  - [ ] Test image upload and display
+
+- [ ] **PR #651 - Clipboard Paste**
+  - [ ] Verify `multimodal-input` component exists in your fork
+  - [ ] Check `uploadFile` function compatibility
+  - [ ] Test clipboard paste functionality
+
+- [ ] **PR #1280 - Artifact Reopening**
+  - [ ] Locate `DataStreamHandler` component
+  - [ ] Update to clear data stream instead of tracking indices
+  - [ ] Ensure `useDataStream` provides `setDataStream`
+  - [ ] Test switching between chats with artifacts
+
+### Medium Priority
 - [ ] **PR #1088 - Test Fix**
   - [ ] Review E2E tests for similar race conditions
   - [ ] Apply promise-first pattern where needed
@@ -675,6 +1173,15 @@ Use this checklist when applying changes to your fork:
   - [ ] Verify `@vercel/postgres` is not used
   - [ ] Remove from package.json
   - [ ] Run `pnpm install` to update lockfile
+
+### Low Priority
+- [ ] **PR #1261 - Query Refactoring**
+  - [ ] Search for `and(eq(...))` patterns with single condition
+  - [ ] Simplify to just `eq(...)`
+
+- [ ] **PR #1296 - Test Selectors**
+  - [ ] Add missing `data-testid` attributes
+  - [ ] Run E2E tests to verify
 
 - [ ] **Documentation PRs**
   - [ ] Update .env.example with new URLs
@@ -697,15 +1204,25 @@ If your fork has diverged significantly, you may encounter conflicts. Here's how
 - Adapt the optimization concept to your ORM (Prisma, TypeORM, etc.)
 - The key principle: only query messages for existing chats, not new ones
 
+### Multimodal Message Handling
+- PR #1279 assumes messages have a `parts` array with type discriminators
+- If your message structure differs, adapt `getTextFromMessage` to your schema
+- Key principle: Extract only text content, exclude images/files from title generation
+
+### Artifact/Document System
+- PRs #1274 and #1280 assume an artifact system with state management
+- If you don't have artifacts, these PRs don't apply
+- If you have similar features (documents, tools, etc.), apply the same patterns
+
 ### Styling System Differences
 - PR #1252 uses Tailwind CSS with custom focus-visible classes
 - If using different CSS approach, apply equivalent focus styles
 - Ensure WCAG compliance regardless of implementation
 
 ### Test Framework Differences
-- PR #1088 is specific to Playwright
-- Apply the same pattern (create promise before action) to your test framework
-- The concept applies to Cypress, Jest, or other frameworks
+- PRs #1088 and #1296 are specific to Playwright
+- Apply the same patterns to your test framework
+- The concepts apply to Cypress, Jest, or other frameworks
 
 ---
 
@@ -727,6 +1244,8 @@ If your fork has diverged significantly, you may encounter conflicts. Here's how
 3. **Streaming:** AI responses use streaming with `ai` SDK
 4. **File Uploads:** Vercel Blob for attachment storage
 5. **Database Migrations:** Drizzle Kit for schema management
+6. **Multimodal Messages:** Messages contain `parts` array with type-discriminated content
+7. **Artifacts:** Documents/code artifacts can be generated and edited inline
 
 ---
 
@@ -736,16 +1255,25 @@ If your fork has diverged significantly, you may encounter conflicts. Here's how
 - **PR #983** is technically a breaking change if external code imports the misspelled function
 - All other changes are backward compatible or documentation-only
 
+### Data Loss Risks
+- **PR #1274** fixes a critical data loss bug - prioritize this
+- **PR #1279** prevents errors with multimodal messages - also critical
+
 ### Testing Requirements
 After applying changes, test these areas:
-1. Chat creation flow (PR #1251)
-2. Image pasting in chat input (PR #651)
-3. Keyboard navigation and focus indicators (PR #1252)
-4. E2E test suite (PR #1088)
+1. **Document/artifact interaction** (PR #1274) - Critical
+2. **Title generation with images** (PR #1279) - Critical
+3. **Chat creation flow** (PR #1251)
+4. **Image upload and display** (PR #1254)
+5. **Image pasting in chat input** (PR #651)
+6. **Keyboard navigation and focus indicators** (PR #1252)
+7. **Artifact behavior when switching chats** (PR #1280)
+8. **E2E test suite** (PRs #1088, #1296)
 
 ### Performance Impact
 - **Positive:** PR #1251 reduces one database query per new chat
-- **Neutral:** All other changes have no performance impact
+- **Positive:** PR #1279 reduces payload size to title generation model
+- **Neutral:** All other changes have minimal performance impact
 - **Bundle Size:** PR #937 reduces bundle size slightly
 
 ---
@@ -757,26 +1285,62 @@ Before applying these changes, answer these questions about your fork:
 1. **Component Architecture:**
    - Does your fork use the same component structure?
    - Have you modified `multimodal-input.tsx` significantly?
+   - Do you have an artifacts/documents system?
 
 2. **Database Layer:**
    - Are you using Drizzle ORM or a different ORM?
    - How does your chat creation flow differ?
+   - Does your `convertToUIMessages` handle empty arrays?
 
-3. **Testing:**
+3. **Message Structure:**
+   - Do your messages support multimodal content (text + images)?
+   - How are message parts structured in your schema?
+   - Do you have a `getTextFromMessage` utility?
+
+4. **Storage Configuration:**
+   - Are you using Vercel Blob Storage or another provider?
+   - Is your `next.config.ts` configured for image hosts?
+   - Do you use `next/image` for uploaded images?
+
+5. **Testing:**
    - Do you have E2E tests with similar patterns?
    - Are there other race conditions in your test suite?
+   - Are your test selectors using `data-testid` attributes?
 
-4. **UI/UX:**
+6. **UI/UX:**
    - Do you use the same UI component library (shadcn/ui)?
    - Have you customized focus styles?
+   - Do you support keyboard navigation?
 
-5. **Dependencies:**
+7. **Dependencies:**
    - Are you using `@vercel/postgres` anywhere?
-   - What's your migration from dependencies?
+   - What AI providers are you using?
+   - Do you have similar unused dependencies?
 
 ---
 
-**Document Version:** 1.0
+## Critical Path for Integration
+
+If you're short on time, follow this critical path:
+
+### Must Apply (Data Loss & Critical Bugs)
+1. PR #1274 - Prevents content loss in documents
+2. PR #1279 - Fixes title generation with multimodal messages
+
+### Should Apply (Significant Improvements)
+1. PR #1251 - Database performance optimization
+2. PR #1254 - Image display configuration (if using Vercel Blob)
+3. PR #1252 - Accessibility fixes
+
+### Nice to Have (Quality of Life)
+1. PR #651 - Clipboard paste support
+2. PR #1280 - Artifact reopening fix
+3. All other PRs as applicable
+
+---
+
+**Document Version:** 2.0
 **Generated:** November 1, 2025
 **Repository:** Chat SDK
-**Base Commit:** `03d3095` (latest merged PR)
+**Base Commit:** `4e0e222` (latest commit in analysis range)
+**Total PRs:** 16 (previously missed 6 PRs in v1.0)
